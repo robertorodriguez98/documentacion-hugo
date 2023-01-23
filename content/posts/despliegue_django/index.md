@@ -1,5 +1,5 @@
 ---
-title: "Despliegue django"
+title: "Despliegue de aplicaciones python sobre django"
 date: 2023-01-23T08:47:22+01:00
 draft: false
 ---
@@ -128,7 +128,7 @@ sudo ln -s /etc/httpd/sites-available/django.conf /etc/httpd/sites-enabled/djang
 sudo systemctl restart httpd
 ```
 
-Ahora podemos acceder a la aplicación desde la dirección [python.roberto.gonzalonazareno.org](python.roberto.gonzalonazareno.org).
+Ahora podemos acceder a la aplicación desde la dirección [python.roberto.gonzalonazareno.org](http://python.roberto.gonzalonazareno.org).
 
 ## Tarea 2: Entorno de producción
 
@@ -293,7 +293,7 @@ Desactivamos el modo debug en el fichero `settings.py`:
 DEBUG = False
 ```
 
-Finalmente accedemos a la página web en [python.admichin.es](python.admichin.es) y comprobamos que funciona correctamente.
+Finalmente accedemos a la página web en [python.admichin.es](https://python.admichin.es) y comprobamos que funciona correctamente.
 
 ![base](https://i.imgur.com/ULmiDVn.png)
 
@@ -301,3 +301,86 @@ Finalmente accedemos a la página web en [python.admichin.es](python.admichin.es
 
 ![polls](https://i.imgur.com/TnfrXlx.png)
 
+## Tarea 3: Modificación de nuestra aplicaciónPermalink
+
+### En el entorno de desarrollo
+
+Vamos a hacer las siguientes modificaciones:
+
+* Modificamos el fichero `django_tutorial/polls/templates/polls/index.html` para que aparezca nuestro nombre.
+* Modificamos la imagen de fondo que se ve la aplicación. Para hacerlo debemos modificar el fichero `django_tutorial/polls/static/polls/css/style.css` y cambiar la siguiente línea, estando la imagen en la carpeta `django_tutorial/polls/static/polls/images`:
+
+```css
+    background: white url("images/gundam.jpg");
+```
+
+Ahora vamos a crear una nueva tabla en la base de datos para almacenar las categorías de las preguntas. Para ello sigue los siguientes pasos:
+
+* Se Añade un nuevo modelo al fichero `django_tutorial/polls/models.py`:
+
+```python
+class Categoria(models.Model):	
+    Abr = models.CharField(max_length=4)
+    Nombre = models.CharField(max_length=50)
+
+    def __str__(self):
+        return self.Abr+" - "+self.Nombre
+```
+
+* Se crea una nueva migración.
+
+```bash
+(django)$ sudo python manage.py makemigrations --name tabla_categoria
+
+Migrations for 'polls':
+  polls/migrations/0002_tabla_categoria.py
+    - Create model Categoria
+```
+
+* Se realiza la migración.
+
+```bash
+(django)$ sudo python manage.py migrate
+Operations to perform:
+  Apply all migrations: admin, auth, contenttypes, polls, sessions
+Running migrations:
+  Applying polls.0002_tabla_categoria... OK
+```
+
+* Se añade el nuevo modelo al sitio de administración de django modificando el fichero `django_tutorial/polls/admin.py`:
+
+```python
+from .models import Choice, Question, Categoria
+
+[...]
+
+admin.site.register(Categoria)  
+```
+
+Para que los cambios se trasladen al entorno de producción debemos realizar los siguientes pasos:
+
+```bash
+(django)$ sudo python manage.py
+(django)$ sudo python manage.py dumpdata > basedatos2.json
+(django)$ sudo python manage.py collectstatic # este no hace falta para el entorno de producción
+(django)$ git push
+```
+
+### En el entorno de producción
+
+* Se realiza la migración.
+
+```bash
+(django)$ git pull
+(django)$ sudo python manage.py migrate
+(django)$ sudo python manage.py loaddata basedatos2.json
+(django)$ sudo python manage.py collectstatic
+```
+
+Podemos comprobar que se han producido los cambios:
+
+![base](https://i.imgur.com/nSoCgbk.png)
+
+![admin](https://i.imgur.com/s5iUxOB.png)
+
+![polls](https://i.imgur.com/UrEhNQj.png)
