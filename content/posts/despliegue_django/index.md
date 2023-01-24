@@ -301,7 +301,7 @@ Finalmente accedemos a la página web en [python.admichin.es](https://python.adm
 
 ![polls](https://i.imgur.com/TnfrXlx.png)
 
-## Tarea 3: Modificación de nuestra aplicaciónPermalink
+## Tarea 3: Modificación de nuestra aplicación
 
 ### En el entorno de desarrollo
 
