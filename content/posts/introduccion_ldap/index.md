@@ -1,7 +1,7 @@
 ---
 title: "Introducción a OpenLDAP"
 date: 2023-01-25T13:47:32+01:00
-draft: true
+draft: false
 ---
 
 El protocolo **LDAP** es muy utilizado actualmente por empresa que apuestan por el software libre al utilizar distribuciones de Linux para ejercer las funciones propias de un **directorio activo** en el que se gestionarán las credenciales y permisos de los trabajadores y estaciones de trabajo en redes LAN corporativas en conexiones cliente/servidor.

@@ -4,7 +4,7 @@ date: 2023-01-25T08:44:05+01:00
 draft: false
 ---
 
-## Caso 1: VPN de acceso remoto con OpenVPN y certificados x509
+## Caso A: VPN de acceso remoto con OpenVPN y certificados x509
 
 {{< alert "circle-info" >}}
 * Uno de los dos equipos (el que actuará como servidor) estará conectado a dos redes
@@ -250,9 +250,9 @@ sudo systemctl status openvpn-client@cliente
 
 ![openvpnclient](https://i.imgur.com/ErQ7bE9.png)
 
-### Configuración de la máquina de la red interna
+### Configuración de la máquina interna
 
-Tenemos que cambiar la ruta por defecto para que sea a través del servidor:
+Tenemos que cambiar la ruta por defecto también de la máquina interna para que sea a través del servidor:
 
 ```bash
 sudo ip route del default
@@ -277,7 +277,7 @@ Podemos incluso, realizar una conexión SSH a la máquina de la red interna:
 
 ---
 
-## Caso 2: VPN sitio a sitio con OpenVPN y certificados x509
+## Caso B: VPN sitio a sitio con OpenVPN y certificados x509
 
 {{< alert "circle-info" >}}
 * Cada equipo estará conectado a dos redes, una de ellas en común
