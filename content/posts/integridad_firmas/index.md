@@ -48,16 +48,11 @@ Ahora, vamos a utilizar un fichero firmado por **María Jesús**, en la que no c
 
 ![Verificación 2](https://i.imgur.com/dzHItTJ.png)
 
-## Tarea 2: Correo seguro con evolution/thunderbird
-
-1. **Configura el cliente de correo evolution con tu cuenta de correo habitual**
-2. **Añade a la cuenta las opciones de seguridad para poder enviar correos firmados con tu clave privada o cifrar los mensajes para otros destinatarios**
-3. **Envía y recibe varios mensajes con tus compañeros y comprueba el funcionamiento adecuado de GPG**
-
 ## Tarea 3: Integridad de ficheros
 
-1. **Para validar el contenido de la imagen CD, solo asegúrese de usar la herramienta apropiada para sumas de verificación. Para cada versión publicada existen archivos de suma de comprobación con algoritmos fuertes (SHA256 y SHA512); debería usar las herramientas sha256sum o sha512sum para trabajar con ellos.**
-2. **Verifica que el contenido del hash que has utilizado no ha sido manipulado, usando la firma digital que encontrarás en el repositorio. Puedes encontrar una guía para realizarlo en este artículo: How to verify an authenticity of downloaded Debian ISO images**
+Para validar el contenido de la imagen CD, solo asegúrese de usar la herramienta apropiada para sumas de verificación. Para cada versión publicada existen archivos de suma de comprobación con algoritmos fuertes (SHA256 y SHA512); debería usar las herramientas sha256sum o sha512sum para trabajar con ellos.
+
+1. **Verifica que el contenido del hash que has utilizado no ha sido manipulado, usando la firma digital que encontrarás en el repositorio. Puedes encontrar una guía para realizarlo en este artículo: How to verify an authenticity of downloaded Debian ISO images**
 
 ```bash
 wget https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-11.6.0-amd64-netinst.iso

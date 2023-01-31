@@ -41,10 +41,162 @@ ldapsearch -x -b "dc=roberto,dc=gonzalonazareno,dc=org"
 
 Para lograr una mejor estructura, la información suele organizarse en forma de **ramas** de las que cuelgan objetos similares (por ejemplo, una rama para usuarios y otra para grupos). Organizar de esta manera la estructura nos aporta también una mayor agilidad en las búsquedas, así como una gestión más eficiente sobre los permisos. Cada rama se denomina **organizational unit** (OU) y cada objeto que cuelga de ella se denomina **entry**.
 
-ara definir dichos objetos, haremos uso de un fichero con extensión `.ldif`, en este caso he creado el fichero `base.ldif` con el siguiente contenido:
+ara definir dichos objetos, haremos uso de un fichero con extensión `.ldif`, en este caso he creado el fichero `unidades.ldif` con el siguiente contenido:
 
 ```ldif
-dn: ou=Usuarios,dc=roberto,dc=gonzalonazareno,dc=org
+dn: ou=Personas,dc=roberto,dc=gonzalonazareno,dc=org
 objectClass: organizationalUnit
-ou: Usuarios
+ou: Personas 
+
+dn: ou=Grupos,dc=roberto,dc=gonzalonazareno,dc=org
+objectClass: organizationalUnit
+ou: Grupos
 ```
+
+Para activar el fichero de configuración, ejecutaremos el siguiente comando:
+
+```bash
+ldapadd -x -D "cn=admin,dc=roberto,dc=gonzalonazareno,dc=org" -f unidades.ldif -W
+```
+
+![ldapadd](https://i.imgur.com/QlLeqHB.png)
+
+Ahora, podemos comprobar que se ha creado las ramas `Personas` y `Grupos`:
+
+```bash
+ldapsearch -x -b "dc=roberto,dc=gonzalonazareno,dc=org"
+```
+
+![ldapsearch2](https://i.imgur.com/ypKuRlq.png)
+
+Podemos borrar los objetos creados con el comando `ldapdelete`:
+
+```bash
+ldapdelete -x -D 'cn=admin,dc=roberto,dc=gonzalonazareno,dc=org' -W ou=Personas,dc=roberto,dc=gonzalonazareno,dc=org
+ldapdelete -x -D 'cn=admin,dc=roberto,dc=gonzalonazareno,dc=org' -W ou=Grupos,dc=roberto,dc=gonzalonazareno,dc=org
+```
+
+Ahora vamos a crear un grupo llamado prueba en el fichero `grupos.ldif`:
+
+```ldif
+dn: cn=prueba,ou=Grupos,dc=roberto,dc=gonzalonazareno,dc=org
+objectClass: posixGroup
+gidNumber: 2001
+cn: prueba
+```
+
+Para activar el fichero de configuración, ejecutaremos el siguiente comando:
+
+```bash
+ldapadd -x -D 'cn=admin,dc=roberto,dc=gonzalonazareno,dc=org' -W -f grupos.ldif
+```
+
+Ejecutando el comando `ldapsearch` podemos comprobar que se ha creado el grupo:
+
+![ldapadd2](https://i.imgur.com/MZxmh26.png)
+
+### Creación del usuario
+
+Ahora vamos a crear un usuario llamado *prueba*. Antes de crearlo, vamos a ejecutar el comando `slappasswd` para crear una contraseña cifrada para el usuario:
+
+![slappasswd](https://i.imgur.com/RrnHM66.png)
+
+Ahora, vamos a crear el usuario en el fichero `usuarios.ldif`:
+
+```ldif
+dn: uid=prueba,ou=Personas,dc=roberto,dc=gonzalonazareno,dc=org
+objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: person
+cn: prueba
+uid: prueba
+uidNumber: 2001
+gidNumber: 2001
+homeDirectory: /nfs/prueba
+loginShell: /bin/bash
+userPassword: {SSHA}sDPbVb9gQ37YaNSg5nPyIe776dmlU2bq
+sn: prueba
+mail: prueba@gmail.com
+givenName: prueba
+```
+
+Para activar el fichero de configuración, ejecutaremos el siguiente comando:
+
+```bash
+ldapadd -x -D 'cn=admin,dc=roberto,dc=gonzalonazareno,dc=org' -W -f usuarios.ldif
+```
+
+Ejecutando el comando `ldapsearch` podemos comprobar que se ha creado el usuario:
+
+![ldapadd3](https://i.imgur.com/9pq9gxy.png)
+
+## Configuración de NFS
+
+Ahora vamos a configurar el servidor NFS para que pueda compartir el directorio `/nfs` con los clientes.
+
+Primero vamos a crear el directorio `/nfs/prueba` y le vamos a dar permisos al usuario `prueba`:
+
+```bash
+mkdir /nfs/prueba
+chown 2001:2001 /nfs/prueba
+```
+
+Ahora vamos a editar el fichero `/etc/exports` y añadir la siguiente línea, que permite que el usuario `prueba` pueda acceder al directorio `/nfs/prueba`:
+
+```bash
+/nfs       *(rw,fsid=0,subtree_check)
+```
+
+Ahora vamos a reiniciar el servicio NFS:
+
+```bash
+systemctl restart nfs-server
+```
+
+## Configuración final del servidor LDAP
+
+Ahora vamos a configurar el servidor LDAP para que sea capaz de resolver nombres de grupos y de usuarios, consultar información a un directorio LDAP, identificarse o cachear la resolución de nombres.
+
+Para ello, instalamos los siguientes paquetes:
+
+```bash
+apt install libpam-ldapd nscd libnss-ldap
+```
+
+Durante la instalación, dejamos los valores por defecto menos en las siguientes preguntas:
+
+![ldapinstall](https://i.imgur.com/9xawQHF.png)
+![ldapinstall2](https://i.imgur.com/mnPntoB.png)
+
+Como se indica al final de la instalación, vamos a editar el fichero `/etc/nsswitch.conf` y añadir las siguientes líneas:
+
+```bash
+passwd:         files ldap
+group:          files ldap
+shadow:         files ldap
+gshadow:        files ldap
+
+hosts:          files dns mymachines
+networks:       files
+
+protocols:      db files
+services:       db files
+ethers:         db files
+rpc:            db files
+
+netgroup:       nis
+```
+
+Reiniciamos el servicio `nscd`:
+
+```bash
+systemctl restart nscd
+```
+
+Ahora con el comando `id prueba` podemos comprobar que se resuelven los nombres:
+
+![id](https://i.imgur.com/ucsbVhG.png)
+
+Finalmente podemos iniciar sesión con el comando `login prueba`:
+
+![login](https://i.imgur.com/zxXslPM.png)
