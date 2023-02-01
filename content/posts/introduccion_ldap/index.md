@@ -10,7 +10,10 @@ El protocolo **LDAP** es muy utilizado actualmente por empresa que apuestan por 
 Realiza la instalación y configuración básica de OpenLDAP en alfa,utilizando como base el nombre DNS asignado. Deberás crear un usuario llamado prueba y configurar una máquina cliente basada en Debian y Rocky para que pueda validarse en servidor ldap configurado anteriormente con el usuario prueba.
 {{< /alert >}}
 
-## Instalación de OpenLDAP
+
+## Servidor
+
+### Instalación de OpenLDAP
 
 Instalaremos OpenLDAP en el servidor alfa, para ello ejecutaremos los siguientes comandos:
 
@@ -35,7 +38,7 @@ ldapsearch -x -b "dc=roberto,dc=gonzalonazareno,dc=org"
 
 ![ldapsearch1](https://i.imgur.com/FgmXMPY.png)
 
-## Configuración de OpenLDAP
+### Configuración de OpenLDAP
 
 ![esquemaLDAP](https://i.imgur.com/qRgLvAz.png)
 
@@ -130,7 +133,7 @@ Ejecutando el comando `ldapsearch` podemos comprobar que se ha creado el usuario
 
 ![ldapadd3](https://i.imgur.com/9pq9gxy.png)
 
-## Configuración de NFS
+### Configuración de NFS
 
 Ahora vamos a configurar el servidor NFS para que pueda compartir el directorio `/nfs` con los clientes.
 
@@ -153,7 +156,7 @@ Ahora vamos a reiniciar el servicio NFS:
 systemctl restart nfs-server
 ```
 
-## Configuración final del servidor LDAP
+### Configuración final del servidor LDAP
 
 Ahora vamos a configurar el servidor LDAP para que sea capaz de resolver nombres de grupos y de usuarios, consultar información a un directorio LDAP, identificarse o cachear la resolución de nombres.
 
@@ -200,3 +203,120 @@ Ahora con el comando `id prueba` podemos comprobar que se resuelven los nombres:
 Finalmente podemos iniciar sesión con el comando `login prueba`:
 
 ![login](https://i.imgur.com/zxXslPM.png)
+
+## Cliente Ubuntu
+
+Instalamos el siguiente paquete:
+
+```bash
+apt install ldap-utils
+```
+
+Ahora vamos a editar el fichero `/etc/ldap/ldap.conf` y añadir las siguientes líneas:
+
+```bash
+BASE dc=roberto,dc=gonzalonazareno,dc=org
+URI ldap://alfa.roberto.gonzalonazareno.org
+```
+
+Después de esto, con el siguiente comando comprobamos que funciona correctamente:
+
+```bash
+ldapsearch -x -b "dc=roberto,dc=gonzalonazareno,dc=org"
+```
+
+![ldapsearch](https://i.imgur.com/FKUMW0Q.png)
+
+Ahora vamos a instalar los paquetes para las resoluciones:
+
+```bash
+apt install libnss-ldap libpam-ldapd nscd
+```
+
+La instalación es similar a la del sevidor, dejando valores por defecto y cambiando los mismos, además de añadir un usuario sin privilegios.
+
+Como se indica al final de la instalación, vamos a editar el fichero `/etc/nsswitch.conf` y añadir las siguientes líneas:
+
+```bash
+passwd:         files systemd ldap
+group:          files systemd ldap
+shadow:         files ldap 
+gshadow:        files ldap
+
+hosts:          files dns
+networks:       files
+
+protocols:      db files
+services:       db files
+ethers:         db files
+rpc:            db files
+
+netgroup:       nis
+```
+
+Reiniciamos el servicio `nscd`:
+
+```bash
+systemctl restart nscd
+```
+
+### NFS
+
+Ahora vamos a instalar el paquete `nfs-common`:
+
+```bash
+apt install nfs-common
+```
+
+Activamos el servicio
+
+```bash
+systemctl start nfs-client.target & systemctl enable nfs-client.target
+```
+
+Ahora vamos a crear los directorios que vamos a montar:
+
+```bash
+mkdir -p /home/nfs/prueba
+chown 2001:2001 /home/nfs/prueba
+```
+
+Ahora vamos a montar la carpeta mediante NFS. Primero, cargamos el módulo
+
+```bash
+modprobe nfs
+```
+
+Con la siguiente línea se carga automáticamente:
+
+```bash
+echo NFS | tee -a /etc/modules
+```
+
+Y vamos a hacer un montaje mediante SystemD a través del fichero `/etc/systemd/system/home-nfs.mount`:
+
+```bash
+[Unit]
+Description=script de montaje NFS
+Requires=network-online.target
+After=network-online.target
+[Mount]
+What=192.168.0.1:/nfs
+Where=/home/nfs
+Options=_netdev,auto
+Type=nfs
+[Install]
+WantedBy=multi-user.target
+```
+
+Y lo activamos:
+
+```bash
+systemctl daemon-reload
+systemctl start home-nfs.mount
+systemctl enable home-nfs.mount
+```
+
+Tras esto, ya podremos entrar correctamente con `login prueba`. Podemos comprobar como los ficheros creados en el servidor se ven reflejados en el cliente:
+
+![nfs](https://i.imgur.com/J1lCNBZ.png)
