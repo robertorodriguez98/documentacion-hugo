@@ -263,8 +263,229 @@ Ahora, cuando envío un correo, se guarda en el buzón Maildir del usuario del s
 Instala configura dovecot para ofrecer el protocolo IMAP. Configura dovecot de manera adecuada para ofrecer autentificación y cifrado.
 {{< /alert >}}
 
+Instalo dovecot:
+
+```bash
+apt install dovecot-imapd -y
+```
+
+Modifico el fichero `/etc/dovecot/conf.d/10-ssl.conf` para añadir el certificado que generamos con certbot al crear la página,  modificando las siguientes líneas:
+
+```bash
+ssl_cert = </etc/letsencrypt/live/admichin.es-0001/fullchain.pem
+ssl_key = </etc/letsencrypt/live/admichin.es-0001/privkey.pem
+```
+
+Ahora cambiamos la localización de los mailbox en el fichero `/etc/dovecot/conf.d/10-mail.conf`:
+
+```bash
+mail_location = maildir:~/Maildir
+```
+
+### Tarea 10
+
+{{< alert "circle-info" >}}
+Instala un webmail (roundcube, horde, rainloop) para gestionar el correo del equipo mediante una interfaz web. Muestra la configuración necesaria y cómo eres capaz de leer los correos que recibe tu usuario.
+{{< /alert >}}
+
+Voy a instalar **roundcube** utilizando docker:
+
+```bash
+apt install docker.io -y
+```
+
+Creo una entrada de tipo CNAME con el nombre webmail:
+
+![CNAME](https://i.imgur.com/dLpPCex.png)
+
+Ahora vamos a crear la configuración  en un directorio que montaremos posteriormente por medio de bind mount en el docker;
+
+```bash
+mkdir /root/cuboredondo
+nano -cl /root/cuboredondo/custom.inc.php
+```
+
+```php
+<?php
+$config['mail_domain'] = array(
+    'mail.admichin.es' => 'admichin.es'
+);
+?>
+```
+
+Ahora creo el contenedor de docker:
+
+```bash
+docker run -d --name docker-cuboredondo \
+-v /root/cuboredondo/:/var/roundcube/config/ \
+-e ROUNDCUBEMAIL_DEFAULT_HOST=ssl://mail.admichin.es \
+-e ROUNDCUBEMAIL_SMTP_SERVER=ssl://mail.admichin.es \
+-e ROUNDCUBEMAIL_SMTP_PORT=465 \
+-e ROUNDCUBEMAIL_DEFAULT_PORT=993 \
+-p 8001:80 \ 
+roundcube/roundcubemail
+```
+
+o en una sola linea:
+
+```bash
+docker run -d --name docker-cuboredondo -v /root/cuboredondo/:/var/roundcube/config/ -e ROUNDCUBEMAIL_DEFAULT_HOST=ssl://mail.admichin.es -e ROUNDCUBEMAIL_SMTP_SERVER=ssl://mail.admichin.es -e ROUNDCUBEMAIL_SMTP_PORT=465 -e ROUNDCUBEMAIL_DEFAULT_PORT=993 -p 8001:80 roundcube/roundcubemail
+```
+
+Ahora creo el virtualhost para el dominio en `/etc/nginx/sites-available/webmail.admichin.es`:
+
+```bash
+server {
+        listen 80;
+        listen [::]:80;
+
+        server_name webmail.admichin.es;
+
+        return 301 https://$host$request_uri;
+}
+
+server {
+        listen 443 ssl http2;
+        listen [::]:443 ssl http2;
+
+        ssl    on;
+        ssl_certificate /etc/letsencrypt/live/admichin.es-0001/fullchain.pem;
+        ssl_certificate_key     /etc/letsencrypt/live/admichin.es-0001/privkey.pem;
+
+        index index.html index.php index.htm index.nginx-debian.html;
+
+        server_name webmail.admichin.es;
+
+        location / {
+                proxy_pass http://localhost:8001;
+                include proxy_params;
+        }
+}
+```
+
+Ahora activo el sitio y reinicio nginx:
+
+```bash
+ln -s /etc/nginx/sites-available/webmail.admichin.es /etc/nginx/sites-enabled/
+systemctl restart nginx
+```
+
+Ahora podemos acceder a la instancia de roundcube desde el navegador:
+
+![Roundcube](https://i.imgur.com/CEWcKuI.png)
+
+Como se puede ver acabo de recibir el correo del ejercicio de la tarea del cron. Ahora un correo enviado desde fuera:
+
+![Correo enviado desde fuera](https://i.imgur.com/bqHtnNH.png)
+
+### Tarea 11
+
+{{< alert "circle-info" >}}
+Configura de manera adecuada postfix para que podamos mandar un correo desde un cliente remoto. La conexión entre cliente y servidor debe estar autentificada con SASL usando dovecor y además debe estar cifrada. Para cifrar esta comunicación puedes usar dos opciones:
+
+* **ESMTP + STARTTLS**: Usando el puerto 567/tcp enviamos de forma segura el correo al servidor.
+* **SMTPS**: Utiliza un puerto no estándar (465) para SMTPS (Simple Mail Transfer Protocol Secure). No es una extensión de smtp. Es muy parecido a HTTPS.
+
+Elige una de las opciones anterior para realizar el cifrado. Y muestra la configuración de un cliente de correo (evolution, thunderbird, …) y muestra como puedes enviar los correos.
+{{< /alert >}}
+
+Usaré los mismos certificados que he generado antes para cifrar los emails que envío y recibo. Para ello, modifico la configuración de postfix en `/etc/postfix/main.cf`:
+
+```bash
+smtpd_tls_cert_file = /etc/letsencrypt/live/admichin.es-0001/fullchain.pem
+smtpd_tls_key_file = /etc/letsencrypt/live/admichin.es-0001/privkey.pem
+
+smtpd_sasl_auth_enable = yes
+smtpd_sasl_type = dovecot
+smtpd_sasl_path = private/auth
+smtpd_sasl_authenticated_header = yes
+broken_sasl_auth_clients = yes
+```
+
+Ahora edito `/etc/postfix/master.cf`:
+
+```bash
+submission inet n       -       y       -       -       smtpd
+  -o content_filter=spamassassin
+  -o syslog_name=postfix/submission
+  -o smtpd_tls_security_level=encrypt
+  -o smtpd_sasl_auth_enable=yes
+  -o smtpd_tls_auth_only=yes
+  -o smtpd_reject_unlisted_recipient=no
+  -o smtpd_client_restrictions=$mua_client_restrictions
+  -o smtpd_helo_restrictions=$mua_helo_restrictions
+  -o smtpd_sender_restrictions=$mua_sender_restrictions
+  -o smtpd_recipient_restrictions=
+  -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
+  -o milter_macro_daemon_name=ORIGINATING
+
+smtps     inet  n       -       y       -       -       smtpd
+  -o syslog_name=postfix/smtps
+  -o smtpd_tls_wrappermode=yes
+  -o smtpd_sasl_auth_enable=yes
+  -o smtpd_reject_unlisted_recipient=no
+  -o smtpd_client_restrictions=$mua_client_restrictions
+  -o smtpd_helo_restrictions=$mua_helo_restrictions
+  -o smtpd_sender_restrictions=$mua_sender_restrictions
+  -o smtpd_recipient_restrictions=
+  -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
+  -o milter_macro_daemon_name=ORIGINATING
+```
+
+Le indico a dovecot como debe realizar la auntentificación en el fichero `/etc/dovecot/conf.d/10-master.conf`:
+
+```bash
+service auth {
+  ...
+  # Postfix smtp-auth
+  unix_listener /var/spool/postfix/private/auth {
+    mode = 0666
+  }
+  ...
+}
+```
+
+Ahora hay que abrir los puertos 465 y 993 en la vps. Tras eso, reiniciamos el servicio:
+
+```bash
+systemctl restart postfix dovecot
+```
+
+Ahora configuramos el cliente de correo **evolution**:
+
+![Configuración de evolution](https://i.imgur.com/pdVsGVt.png)
+![Configuración de evolution](https://i.imgur.com/Asvo17x.png)
+
+Tras configurarlo probamos la recepción de un correo:
+
+![Correo recibido](https://i.imgur.com/4g08tu3.png)
+
+Y el envío:
+
+![Correo enviado](https://i.imgur.com/ZBCNpp7.png)
+![Correo enviado](https://i.imgur.com/jbV8Ojo.png)
 
 
+### Tarea 12
+
+{{< alert "circle-info" >}}
+Configura el cliente webmail para el envío de correo. Realiza una prueba de envío con el webmail.
+{{< /alert >}}
+
+Esta tarea consiste en poder enviar correos desde el cliente roundcube, y se han realizado las configuraciones necesarias en la tarea 10. Ahora solo queda probarlo:
+
+![Correo enviado desde roundcube](https://i.imgur.com/CGQ8zuf.png)
+![Correo enviado desde roundcube](https://i.imgur.com/miQ63i6.png)
 
 ## Comprobación final
 
+### Tarea 13
+
+{{< alert "circle-info" >}}
+ Prueba de envío de correo. En esta [página](https://www.mail-tester.com/) tenemos una herramienta completa y fácil de usar a la que podemos enviar un correo para que verifique y puntúe el correo que enviamos. Captura la pantalla y muestra la puntuación que has sacado.
+{{< /alert >}}
+
+Enviamos un correo para comprobar la puntuación:
+
+![Correo enviado para comprobar la puntuación](https://i.imgur.com/pt2pp6m.png)
+![Correo enviado para comprobar la puntuación](https://i.imgur.com/X5klV3K.png)
