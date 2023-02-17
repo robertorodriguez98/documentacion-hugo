@@ -19,7 +19,7 @@ iptables -Z
 iptables -t nat -Z
 ```
 
-**Política por defecto**
+**Acceso por SSH**
 
 Antes de añadir la política por defecto voy a añadir reglas para permitir el acceso por ssh
 
@@ -35,12 +35,16 @@ iptables -A INPUT -s 172.29.0.0/16 -p tcp --dport 22 -m state --state NEW,ESTABL
 iptables -A OUTPUT -d 172.29.0.0/16 -p tcp --sport 22 -m state --state ESTABLISHED -j ACCEPT
 ```
 
-Ahora añado las políticas por defecto
+Ahora añado las **políticas por defecto**
 
 ```bash
 iptables -P INPUT DROP
 iptables -P OUTPUT DROP
 ```
+
+Ahora pruebo que se han aplicado, por ejemplo, haciendo un ping:
+
+![ping](https://i.imgur.com/GgWurZe.png)
 
 **Permitimos tráfico por la interfaz de loopback**
 
@@ -56,12 +60,20 @@ iptables -A INPUT -i ens3 -p icmp --icmp-type echo-reply -j ACCEPT
 iptables -A OUTPUT -o ens3 -p icmp --icmp-type echo-request -j ACCEPT
 ```
 
+Pruebo que funciona haciendo un ping
+
+![ping2](https://i.imgur.com/eTTjjEV.png)
+
 **Consultas y respuestas DNS**
 
 ```bash
 iptables -A OUTPUT -o ens3 -p udp --dport 53 -m state --state NEW,ESTABLISHED -j ACCEPT
 iptables -A INPUT -i ens3 -p udp --sport 53 -m state --state ESTABLISHED -j ACCEPT
 ```
+
+Pruebo que funciona haciendo una consulta DNS
+
+![dns](https://i.imgur.com/Ep1vuVz.png)
 
 **Tráfico HTTP**
 
@@ -70,12 +82,20 @@ iptables -A OUTPUT -o ens3 -p tcp --dport 80 -m state --state NEW,ESTABLISHED -j
 iptables -A INPUT -i ens3 -p tcp --sport 80 -m state --state ESTABLISHED -j ACCEPT
 ```
 
+Pruebo que funciona haciendo una consulta HTTP
+
+![http](https://i.imgur.com/aB17haB.png)
+
 **Tráfico HTTPS**
 
 ```bash
 iptables -A OUTPUT -o ens3 -p tcp --dport 443 -m state --state NEW,ESTABLISHED -j ACCEPT
 iptables -A INPUT -i ens3 -p tcp --sport 443 -m state --state ESTABLISHED -j ACCEPT
 ```
+
+Pruebo que funciona haciendo una consulta HTTPS
+
+![https](https://i.imgur.com/BzyJeje.png)
 
 **Tráfico HTTP/HTTPs**
 
@@ -92,6 +112,10 @@ iptables -A INPUT -i ens3 -p tcp -m multiport --sports 80,443 -m state --state E
 iptables -A INPUT -i ens3 -p tcp --dport 80 -m state --state NEW,ESTABLISHED -j ACCEPT
 iptables -A OUTPUT -o ens3 -p tcp --sport 80 -m state --state ESTABLISHED -j ACCEPT
 ```
+
+Pruebo que funciona haciendo una consulta HTTP desde el exterior
+
+![web](https://i.imgur.com/1TbKhY2.png)
 
 ## Ejercicios
 
@@ -116,7 +140,7 @@ iptables -A OUTPUT -d 172.29.0.0/16 -p tcp --sport 22 -m state --state ESTABLISH
 
 ### 2. Deniega el acceso a tu servidor web desde una ip concreta
 
-Como ya he creado en la preparación una regla que permite el acceso al servidor web, para que el bloque funcione tengo que añadir la regla antes. Para ello, primero miro la posición de la regla que permite el acceso al servidor web
+Como ya he creado en la preparación una regla que permite el acceso al servidor web, para que el bloque funcione tengo que añadir la regla antes, ya que el orden es importante en iptables. Para ello, primero miro la posición de la regla que permite el acceso al servidor web
 
 ```bash
 iptables -L -n -v --line-numbers
@@ -160,7 +184,7 @@ Y si que puedo usando el dns, `dig@192.168.202.2 www.josedomingo.org`:
 
 ![dns2](https://i.imgur.com/1O9FXoM.png)
 
-### 4. No permitir el acceso al servidor web de www.josedomingo.org (Tienes que utilizar la ip). ¿Puedes acceder a fp.josedomingo.org?
+### 4. No permitir el acceso al servidor web de www.josedomingo.org, Tienes que utilizar la ip. ¿Puedes acceder a fp.josedomingo.org?
 
 Al igual que en el ejercicio 2, primero miro la posición de la regla que permite el acceso al servidor web
 
