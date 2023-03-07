@@ -90,3 +90,5 @@ sudo journalctl --file /var/log/journal/remote/remote-192.168.0.3.journal
 ```
 
 ![logs](https://i.imgur.com/qnJuI9g.png)
+
+En un ejemplo anterior: [Ejemplo completo: Desplegando y accediendo a la aplicación Temperaturas](https://github.com/josedom24/curso_kubernetes_ies/blob/main/modulo6/temperaturas.md) habíamos desplegado una aplicación formada por dos microservicios que nos permitía visualizar las temperaturas de municipios.
